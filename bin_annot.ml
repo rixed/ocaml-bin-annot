@@ -125,6 +125,23 @@ let print_pattern_desc oc = function
   (*| Tpat_exception _ -> output_string oc "Tpat_exception"*)
   | Tpat_or _ -> output_string oc "Tpat_or"
 
+let print_signature_item_desc oc = function
+  | Typedtree.Tsig_value _ -> output_string oc "Tsig_value"
+  | Tsig_type _ -> output_string oc "Tsig_type"
+  (*| Tsig_typesubst _ -> output_string oc "Tsig_typesubst"*)
+  | Tsig_typext _ -> output_string oc "Tsig_typext"
+  | Tsig_exception _ -> output_string oc "Tsig_exception"
+  | Tsig_module _ -> output_string oc "Tsig_module"
+  (*| Tsig_modsubst _ -> output_string oc "Tsig_modsubst"*)
+  | Tsig_recmodule _ -> output_string oc "Tsig_recmodule"
+  | Tsig_modtype _ -> output_string oc "Tsig_modtype"
+  (*| Tsig_modtypesubst _ -> output_string oc "Tsig_modtypesubst"*)
+  | Tsig_open _ -> output_string oc "Tsig_open"
+  | Tsig_include _ -> output_string oc "Tsig_include"
+  | Tsig_class _ -> output_string oc "Tsig_class"
+  | Tsig_class_type _ -> output_string oc "Tsig_class_type"
+  | Tsig_attribute _ -> output_string oc "Tsig_attribute"
+
 (*
  * The location which type we are looking for:
  *)
@@ -170,6 +187,10 @@ let search_list what f l =
   with Not_found as e ->
     log "No matching %s" what ;
     reraise e
+
+let search_array what f a =
+  let l = Array.to_list a in
+  search_list what f l
 
 let rec search_module_expr_desc = function
   | Typedtree.Tmod_structure s ->
@@ -265,6 +286,40 @@ and search_structure_item si =
 and search_structure s =
   search_list "search_structure_item" search_structure_item s.Typedtree.str_items
 
+and search_signature_item_desc = function
+  | Typedtree.Tsig_value vd ->
+      vd.Typedtree.val_val.Types.val_type
+  | x ->
+      log "search_signature_item_desc(%a)" print_signature_item_desc x ;
+      raise Not_found
+
+and search_signature_item si =
+  if_within "search_signature_item" si.Typedtree.sig_loc (fun () ->
+    search_signature_item_desc si.sig_desc)
+
+and search_signature s =
+  search_list "search_signature_item" search_signature_item s.Typedtree.sig_items
+
+and search_binary_part = function
+  | Cmt_format.Partial_structure s ->
+      search_structure s
+  | Partial_structure_item si ->
+      search_structure_item si
+  | Partial_expression e ->
+      search_expression e
+  | Partial_pattern pat ->
+      search_pattern pat
+  | Partial_class_expr _ ->
+      log "Partial_class_expr" ;
+      raise Not_found
+  | Partial_signature s ->
+      search_signature s
+  | Partial_signature_item si ->
+      search_signature_item si
+  | Partial_module_type _ ->
+      log "Partial_module_type" ;
+      raise Not_found
+
 (* Print a map of all encountered location->type *)
 let search_annots = function
   | Ocaml_common.Cmt_format.Packed _ ->
@@ -275,12 +330,9 @@ let search_annots = function
   | Interface signature ->
       log "search_annots: Interface" ;
       raise Not_found
-  | Partial_implementation binary_parts ->
-      log "search_annots: Partial_implementation" ;
-      raise Not_found
-  | Partial_interface binary_parts ->
-      log "search_annots: Partial_interface" ;
-      raise Not_found
+  | Partial_implementation bps
+  | Partial_interface bps ->
+      search_array "Partial_implementation" search_binary_part bps
 
 let start_search cmt_file =
   let cmt = Ocaml_common.Cmt_format.read_cmt cmt_file in
