@@ -245,7 +245,15 @@ and search_expression ?(skip_location_check=false) e =
   if skip_location_check then f () else
   if_within "search_expression" e.Typedtree.exp_loc f
 
+(* Compatible with OCaml v4.07.1 but has changed at some point: *)
 and search_pattern_desc = function
+  | Typedtree.Tpat_tuple pats ->
+      let rec loop = function
+        | [] -> raise Not_found
+        | p :: pats ->
+            try search_pattern p
+            with Not_found -> loop pats in
+      loop pats
   | x ->
       log "search_pattern_desc(%a)" print_pattern_desc x ;
       raise Not_found
