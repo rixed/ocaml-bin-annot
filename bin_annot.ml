@@ -4,7 +4,7 @@
 
 let debug = false
 let log fmt =
-  if debug then Printf.eprintf (fmt ^^ "\n")
+  if debug then Printf.eprintf (fmt ^^ "\n%!")
   else Printf.ifprintf stderr fmt
 
 external reraise : exn -> 'a = "%reraise"
