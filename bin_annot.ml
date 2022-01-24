@@ -342,9 +342,8 @@ let search_annots = function
   | Partial_interface bps ->
       search_array "Partial_implementation" search_binary_part bps
 
-let start_search cmt_file =
-  let cmt = Ocaml_common.Cmt_format.read_cmt cmt_file in
-  search_annots cmt.cmt_annots
+let start_search cmt =
+  search_annots cmt.Ocaml_common.Cmt_format.cmt_annots
 
 (*
  * Entry point
@@ -372,7 +371,14 @@ let () =
     col := !col - 1 ;
     file := simplified_filename !path ;
     log "Looking for the type at %s:%d.%d" !file !line !col ;
-    let te = start_search !path in
-    print_type_expr stdout te ;
-    if not !skip_newline_at_end then print_newline ()
+    let exit_code = ref 1 in
+    (match Ocaml_common.Cmt_format.read_cmt !path with
+    | exception e ->
+        print_string (Printexc.to_string e)
+    | cmt ->
+        let te = start_search cmt in
+        print_type_expr stdout te ;
+        exit_code := 0) ;
+    if not !skip_newline_at_end then print_newline () ;
+    exit !exit_code
   )
